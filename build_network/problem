@@ -1,0 +1,5 @@
+
+
+t = list(range(-10, 11, 1))
+t = [val/10.0 for val in t]
+sess.run(sigmoid_train, {t: t, y: ([0] *10) + [0.5] + ([1]*10)})
