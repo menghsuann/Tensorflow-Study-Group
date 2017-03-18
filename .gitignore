@@ -87,3 +87,10 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+*.txt
+*.png
+*.gz
+*.zip
+*.csv
+*.jpeg
