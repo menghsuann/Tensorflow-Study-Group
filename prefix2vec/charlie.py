@@ -30,7 +30,7 @@ import tensorflow as tf
 
 # Step 1: Download the data.
 
-filename = 'article.txt'
+filename = 'article_prsw_nan.txt'
 
 
 # Read the data into a list of strings.
@@ -44,10 +44,11 @@ words = read_data(filename)
 print('Data size', len(words))
 
 # Step 2: Build the dictionary and replace rare words with UNK token.
-vocabulary_size = 308
+vocabulary_size = 13300
 
 
 def build_dataset(words):
+  print ('lenth: ', len(set(words)))
   count = [['UNK', -1]]
   count.extend(collections.Counter(words).most_common(vocabulary_size - 1))
   print ('count: ', len(count))
@@ -171,7 +172,7 @@ with graph.as_default():
   init = tf.initialize_all_variables()
 
 # Step 5: Begin training.
-num_steps = 10001
+num_steps = 1000000
 
 with tf.Session(graph=graph) as session:
   # We must initialize all variables before we use them.
@@ -189,7 +190,7 @@ with tf.Session(graph=graph) as session:
     _, loss_val = session.run([optimizer, loss], feed_dict=feed_dict)
     average_loss += loss_val
 
-    if step % 2000 == 0:
+    if step % 2000 == 0 or step < 3:
       if step > 0:
         average_loss /= 2000
       # The average loss is an estimate of the loss over the last 2000 batches.
@@ -204,6 +205,7 @@ with tf.Session(graph=graph) as session:
         top_k = 8  # number of nearest neighbors
         nearest = (-sim[i, :]).argsort()[1:top_k + 1]
         log_str = "Nearest to %s:" % valid_word
+
         for k in xrange(top_k):
           close_word = reverse_dictionary[nearest[k]]
           log_str = "%s %s," % (log_str, close_word)
@@ -233,9 +235,17 @@ try:
   import matplotlib.pyplot as plt
 
   tsne = TSNE(perplexity=30, n_components=2, init='pca', n_iter=5000)
-  plot_only = 308
+  plot_only = 1000
   low_dim_embs = tsne.fit_transform(final_embeddings[:plot_only, :])
   labels = [reverse_dictionary[i] for i in xrange(plot_only)]
+
+  with open('prs.txt') as infile:
+      prss = set(infile.read().split(" "))
+  zipped = tuple((emb, label) for emb, label in zip(low_dim_embs, labels) if label in prss)
+
+  low_dim_embs = np.array([emb for emb, label in zipped])
+  labels = [label for emb, label in zipped]
+
   plot_with_labels(low_dim_embs, labels)
 
 except ImportError:
