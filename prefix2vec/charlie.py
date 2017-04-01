@@ -22,6 +22,7 @@ import math
 import os
 import random
 import zipfile
+from tensorflow.contrib.tensorboard.plugins import projector
 
 import numpy as np
 from six.moves import urllib
@@ -138,7 +139,7 @@ with graph.as_default():
     # Look up embeddings for inputs.
     embeddings = tf.Variable(
         tf.random_uniform([vocabulary_size, embedding_size], -1.0, 1.0))
-    embed = tf.nn.embedding_lookup(embeddings, train_inputs)
+    embed = tf.nn.embedding_lookup(embeddings, train_inputs, name="embeddings")
 
     # Construct the variables for the NCE loss
     nce_weights = tf.Variable(
@@ -162,7 +163,7 @@ with graph.as_default():
 
   # Compute the cosine similarity between minibatch examples and all embeddings.
   norm = tf.sqrt(tf.reduce_sum(tf.square(embeddings), 1, keep_dims=True))
-  normalized_embeddings = embeddings / norm
+  normalized_embeddings = tf.div(embeddings, norm, name="normalized_embeddings")
   valid_embeddings = tf.nn.embedding_lookup(
       normalized_embeddings, valid_dataset)
   similarity = tf.matmul(
@@ -172,12 +173,18 @@ with graph.as_default():
   init = tf.initialize_all_variables()
 
 # Step 5: Begin training.
-num_steps = 1000000
+num_steps = 1000
 
 with tf.Session(graph=graph) as session:
   # We must initialize all variables before we use them.
   init.run()
   print("Initialized")
+
+  config = projector.ProjectorConfig()
+  embedding = config.embeddings.add()
+  embedding.tensor_name = embeddings.name
+  summary_writer = tf.summary.FileWriter('train', session.graph)
+  projector.visualize_embeddings(summary_writer, config)
 
   average_loss = 0
   for step in xrange(num_steps):
@@ -189,6 +196,10 @@ with tf.Session(graph=graph) as session:
     # in the list of returned values for session.run()
     _, loss_val = session.run([optimizer, loss], feed_dict=feed_dict)
     average_loss += loss_val
+    print (step)
+    if step % 100 == 0:
+        saver = tf.train.Saver([embeddings])
+        saver.save(session, "train/model.ckpt", step)
 
     if step % 2000 == 0 or step < 3:
       if step > 0:
@@ -216,6 +227,7 @@ with tf.Session(graph=graph) as session:
 
 
 def plot_with_labels(low_dim_embs, labels, filename='tsne.png'):
+  return
   assert low_dim_embs.shape[0] >= len(labels), "More labels than embeddings"
   plt.figure(figsize=(18, 18))  # in inches
   for i, label in enumerate(labels):
@@ -227,8 +239,8 @@ def plot_with_labels(low_dim_embs, labels, filename='tsne.png'):
                  textcoords='offset points',
                  ha='right',
                  va='bottom')
-
   plt.savefig(filename)
+  plt.show()
 
 try:
   from sklearn.manifold import TSNE
